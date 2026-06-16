@@ -41,7 +41,7 @@ pipeline {
           cat $KUBECONFIG > .kube/config
           cp charts/values.yaml values.yml
           sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-          helm upgrade --install app charts --values=values.yml --namespace jenkins-dev
+          helm upgrade --install app charts --values=values.yml  --set service.nodePort=30007 --namespace jenkins-dev
           '''
         }
       }
@@ -55,7 +55,7 @@ pipeline {
           cat $KUBECONFIG > .kube/config
           cp charts/values.yaml values.yml
           sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-          helm upgrade --install app charts --values=values.yml --namespace jenkins-qa
+          helm upgrade --install app charts --values=values.yml --set service.nodePort=30008 --namespace jenkins-qa
           '''
         }
       }
@@ -69,7 +69,7 @@ pipeline {
           cat $KUBECONFIG > .kube/config
           cp charts/values.yaml values.yml
           sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-          helm upgrade --install app charts --values=values.yml --namespace jenkins-staging
+          helm upgrade --install app charts --values=values.yml --set service.nodePort=30009 --namespace jenkins-staging
           '''
         }
       }
@@ -89,7 +89,7 @@ pipeline {
           cat $KUBECONFIG > .kube/config
           cp charts/values.yaml values.yml
           sed -i "s+tag.*+tag: ${DOCKER_TAG}+g" values.yml
-          helm upgrade --install app charts --values=values.yml --namespace jenkins-prod
+          helm upgrade --install app charts --values=values.yml --set service.nodePort=30010 --namespace jenkins-prod
           '''
         }
       }
