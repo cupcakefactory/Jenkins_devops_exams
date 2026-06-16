@@ -1,113 +1,117 @@
 pipeline {
-  environment {
-    DOCKER_ID = "cupcakefactory"
-    DOCKER_IMAGE_CAST = "${DOCKER_ID}/cast-service"
-    DOCKER_TAG = "v.${BUILD_ID}.0"
-    DOCKER_PASS = credentials("DOCKER_HUB_PASS")
-    KUBECONFIG = credentials("config")
-  }
-  agent any
-  stages {
-    stage('Docker Build'){
-      steps {
-        script {
-          sh '''
-            docker build -t $DOCKER_IMAGE_CAST:$DOCKER_TAG ./cast-service
-            sleep 6
-          '''
-        }
-      }
+    environment {
+        DOCKER_ID = "cupcakefactory"
+        DOCKER_IMAGE_CAST = "${DOCKER_ID}/cast-service"
+        DOCKER_TAG = "v.${BUILD_ID}.0"
+        DOCKER_PASS = credentials("DOCKER_HUB_PASS")
+        KUBECONFIG = credentials("config")
     }
-    stage('Test Acceptance'){
-      steps {
-        script {
-          sh '''
-          docker compose up -d
-          sleep 40
-          curl localhost:8080/api/v1/casts/docs
-          docker compose down
-          '''
-        }
-      }
+    agent any
+    options {
+        //stops a new pipeline instance from starting until the running instance is completed
+        disableConcurrentBuilds()
     }
-    stage('Docker Push'){
-      steps {
-        script {
-          sh '''
-          docker login -u $DOCKER_ID -p $DOCKER_PASS
-          docker push $DOCKER_IMAGE_CAST:$DOCKER_TAG
-          '''
+    stages {
+        stage('Docker Build'){
+            steps {
+                script {
+                sh '''
+                    docker build -t $DOCKER_IMAGE_CAST:$DOCKER_TAG ./cast-service
+                    sleep 6
+                '''
+                }
+            }
         }
-      }
+        stage('Test Acceptance'){
+            steps {
+                script {
+                sh '''
+                docker compose up -d
+                sleep 40
+                curl localhost:8080/api/v1/casts/docs
+                docker compose down
+                '''
+                }
+            }
+        }
+        stage('Docker Push'){
+            steps {
+                script {
+                sh '''
+                docker login -u $DOCKER_ID -p $DOCKER_PASS
+                docker push $DOCKER_IMAGE_CAST:$DOCKER_TAG
+                '''
+                }
+            }
+        }
+    
+        stage('Deploy-dev'){
+            steps {
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                cat $KUBECONFIG > .kube/config
+                cp charts/values.yaml values.yml
+                sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
+                sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
+                helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30011 --namespace jenkins-dev
+                '''
+                }
+            }
+        }
+        stage('Deploy-qa'){
+            steps {
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                cat $KUBECONFIG > .kube/config
+                cp charts/values.yaml values.yml
+                sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
+                sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
+                helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30012 --namespace jenkins-qa
+                '''
+                }
+            }
+        }    
+        stage('Deploy-staging'){
+            steps {
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                cat $KUBECONFIG > .kube/config
+                cp charts/values.yaml values.yml
+                sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
+                sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
+                helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30013 --namespace jenkins-staging  
+                '''
+                }
+            }
+        }
+        stage('Deploy prod'){
+            when {
+                expression { env.GIT_BRANCH == 'origin/master' }
+            }
+            steps {
+                timeout(time: 15, unit: "MINUTES") {
+                input message: 'Do you want to deploy in production ?', ok: 'Yes'
+                }
+                script {
+                sh '''
+                rm -Rf .kube
+                mkdir .kube
+                cat $KUBECONFIG > .kube/config
+                cp charts/values.yaml values.yml
+                sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
+                sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
+                helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30014 --namespace jenkins-prod
+                '''
+                }
+            }
+        }
     }
-   
-    stage('Deploy-dev'){
-      steps {
-        script {
-          sh '''
-          rm -Rf .kube
-          mkdir .kube
-          cat $KUBECONFIG > .kube/config
-          cp charts/values.yaml values.yml
-          sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
-          sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
-          helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30011 --namespace jenkins-dev
-          '''
-        }
-      }
-    }
-    stage('Deploy-qa'){
-      steps {
-        script {
-          sh '''
-          rm -Rf .kube
-          mkdir .kube
-          cat $KUBECONFIG > .kube/config
-          cp charts/values.yaml values.yml
-          sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
-          sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
-          helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30012 --namespace jenkins-qa
-          '''
-        }
-      }
-    }    
-    stage('Deploy-staging'){
-      steps {
-        script {
-          sh '''
-          rm -Rf .kube
-          mkdir .kube
-          cat $KUBECONFIG > .kube/config
-          cp charts/values.yaml values.yml
-          sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
-          sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
-          helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30013 --namespace jenkins-staging  
-          '''
-        }
-      }
-    }
-    stage('Deploy prod'){
-      when {
-        expression { env.GIT_BRANCH == 'origin/master' }
-      }
-      steps {
-        timeout(time: 15, unit: "MINUTES") {
-          input message: 'Do you want to deploy in production ?', ok: 'Yes'
-        }
-        script {
-          sh '''
-          rm -Rf .kube
-          mkdir .kube
-          cat $KUBECONFIG > .kube/config
-          cp charts/values.yaml values.yml
-          sed -i "s+.*repository.*+  repository: $DOCKER_IMAGE_CAST+g" values.yml
-          sed -i "s+.*tag.*+  tag: $DOCKER_TAG+g" values.yml
-          helm upgrade --install app-cast charts --values=values.yml --set service.nodePort=30014 --namespace jenkins-prod
-          '''
-        }
-      }
-    }
-  }
   post {
     failure {
       echo "This will run if the job failed"

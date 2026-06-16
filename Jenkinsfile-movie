@@ -7,6 +7,10 @@ pipeline {
     KUBECONFIG = credentials("config")
   }
   agent any
+  options {
+    //stops a new pipeline instance from starting until the running instance is completed
+    disableConcurrentBuilds()
+  }
   stages {
     stage('Docker Build'){
       steps {
