@@ -26,10 +26,10 @@ pipeline {
         script {
           sh '''
           docker run -d -p 8001:8000 --name jenkins_movie $DOCKER_IMAGE_MOVIE:$DOCKER_TAG uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-          sleep 10
+          sleep 30
           curl localhost:8001/api/v1/movies/docs
           docker run -d -p 8002:8000 --name jenkins_cast $DOCKER_IMAGE_CAST:$DOCKER_TAG uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-          sleep 10
+          sleep 30
           curl localhost:8002/api/v1/casts/docs
 
           docker rm -f jenkins_movie
