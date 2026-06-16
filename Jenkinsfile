@@ -21,6 +21,19 @@ pipeline {
         }
       }
     }
+    stage('Test Acceptance'){
+      steps {
+        script {
+          sh '''
+          docker-compose up -d
+          sleep 40
+          curl localhost:8080/api/v1/movies/docs
+          curl localhost:8080/api/v1/casts/docs
+          docker-compose down
+          '''
+        }
+      }
+    }
     stage('Docker Push'){
       steps {
         script {
@@ -32,6 +45,7 @@ pipeline {
         }
       }
     }
+   
     stage('Deploy-dev'){
       steps {
         script {
