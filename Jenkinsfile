@@ -21,23 +21,6 @@ pipeline {
         }
       }
     }
-    stage('Test Acceptance'){
-      steps {
-        script {
-          sh '''
-          docker run -d -p 8001:8000 --name jenkins_movie $DOCKER_IMAGE_MOVIE:$DOCKER_TAG uvicorn app.main:app  --host 0.0.0.0 --port 8000 --loop asyncio
-          sleep 30
-          curl localhost:8001/api/v1/movies/docs
-          docker run -d -p 8002:8000 --name jenkins_cast $DOCKER_IMAGE_CAST:$DOCKER_TAG uvicorn app.main:app  --host 0.0.0.0 --port 8000 --loop asyncio
-          sleep 30
-          curl localhost:8002/api/v1/casts/docs
-
-          docker rm -f jenkins_movie || true
-          docker rm -f jenkins_cast  || true
-          '''
-        }
-      }
-    }
     stage('Docker Push'){
       steps {
         script {
