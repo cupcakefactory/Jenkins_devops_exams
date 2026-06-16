@@ -25,11 +25,11 @@ pipeline {
       steps {
         script {
           sh '''
-          docker-compose up -d
+          docker compose up -d
           sleep 40
           curl localhost:8080/api/v1/movies/docs
           curl localhost:8080/api/v1/casts/docs
-          docker-compose down
+          docker compose down
           '''
         }
       }
